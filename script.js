@@ -2,16 +2,12 @@
 let currentStep = 1;
 let selectedGenre = '';
 let storyData = {};
-import { NovitaSDK, TaskStatus } from "https://cdn.skypack.dev/novita-sdk";
-
 let aiSettings = {
     model: 'grok-3-mini',
     creativity: 70,
     apiKey: '',
     novitaApiKey: ''
 };
-
-let novitaClient = null;
 
 // DOM elements
 const steps = document.querySelectorAll('.step');
@@ -49,7 +45,6 @@ function initializeApiKeys() {
         
         if (aiSettings.novitaApiKey && aiSettings.novitaApiKey !== 'your-novita-api-key-here') {
             console.log('✅ Novita API key loaded');
-            novitaClient = new NovitaSDK(aiSettings.novitaApiKey);
         } else {
             console.warn('⚠️  Novita API key not configured. Please check config.js');
         }
@@ -384,89 +379,64 @@ Make each page engaging and visual, as it will have an accompanying illustration
 async function generateImagePrompts(storyPages, storyData) {
     const imagePrompts = [];
     
-    // Process each page individually for better, more specific prompts
+    // Generate direct prompts for each page without using AI
     for (let i = 0; i < storyPages.pages.length; i++) {
-        updateLoadingText(`Analyzing page ${i + 1} for best illustration...`);
+        updateLoadingText(`Creating prompt for page ${i + 1}...`);
+        addThinkingLine(`[PROMPTS] Creating direct prompt for page ${i + 1}`, 'system');
         
         const pageContent = storyPages.pages[i];
-        const prompt = createIndividualPagePrompt(pageContent, i + 1, storyData);
-        
-        try {
-            const response = await fetch('https://api.x.ai/v1/chat/completions', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${aiSettings.apiKey}`
-                },
-                body: JSON.stringify({
-                    model: aiSettings.model,
-                    messages: [
-                        {
-                            role: 'system',
-                            content: 'You are an expert at creating compelling image prompts for story illustrations. Analyze the story content and create prompts that show ACTION, CHARACTERS, and EVENTS happening - not empty scenes. If there\'s a bear chasing someone, show the bear chasing the person. If someone is fighting a dragon, show the fight. If there\'s dialogue, show the characters speaking. Always prioritize showing what is actually HAPPENING in the story over just showing empty locations.'
-                        },
-                        {
-                            role: 'user',
-                            content: prompt
-                        }
-                    ],
-                    max_tokens: 1000,
-                    temperature: 0.3
-                })
-            });
-
-            const result = await response.json();
-            const imagePrompt = result.choices[0].message.content.trim();
-            imagePrompts.push(imagePrompt);
-            
-        } catch (error) {
-            console.error(`Error generating prompt for page ${i + 1}:`, error);
-            // Fallback prompt focused on environment
-            imagePrompts.push(`Beautiful ${data.setting} landscape in ${data.artStyle} style, atmospheric and detailed`);
-        }
+        const imagePrompt = createIndividualPagePrompt(pageContent, i + 1, storyData);
+        imagePrompts.push(imagePrompt);
     }
     
+    addThinkingLine(`[PROMPTS] Generated ${imagePrompts.length} image prompts`, 'response');
     return imagePrompts;
 }
 
 function createIndividualPagePrompt(pageContent, pageNumber, storyData) {
-    return `Analyze this story page and create the most compelling image prompt:
-
-PAGE ${pageNumber} CONTENT:
-"${pageContent}"
-
-STORY CONTEXT:
-- Main Character: ${storyData.protagonist}
-- Setting: ${storyData.setting}
-- Main Conflict: ${storyData.conflict}
-- Genre: ${storyData.genre}
-- Art Style: ${storyData.artStyle}
-
-INSTRUCTIONS FOR CREATING THE BEST IMAGE:
-1. READ the page content carefully and identify what is ACTUALLY HAPPENING
-2. If there are characters doing things, SHOW them doing those things
-3. If there's action (fighting, running, talking, etc.), SHOW the action
-4. If there's danger or conflict, SHOW the danger/conflict
-5. If characters are interacting, SHOW the interaction
-6. Balance action with the environment - show both characters AND setting
-7. Use "the character" or "a person" instead of names/pronouns
-
-PRIORITY ORDER:
-1st: Show characters performing actions mentioned in the text
-2nd: Show important objects or creatures mentioned
-3rd: Show the environment that supports the action
-
-CRITICAL REQUIREMENTS:
-- Focus on WHAT IS HAPPENING, not just where it's happening
-- If someone is being chased, show the chase
-- If someone is talking, show them talking
-- If someone discovers something, show the discovery
-- Include the protagonist/main character when they're involved in the scene
-- Make it dramatic and engaging, not static or empty
-- Be specific about character actions, expressions, and poses
-- Include environmental details that enhance the action
-
-Create a detailed image prompt (150-200 words) that shows the ACTION and CHARACTERS from this page.`;
+    // Create a direct 20-word image prompt without using AI
+    const key_elements = [];
+    
+    // Always include character description
+    key_elements.push(`${storyData.protagonist}`);
+    
+    // Extract action words and important nouns from the page content
+    const content = pageContent.toLowerCase();
+    const actionWords = ['running', 'fighting', 'talking', 'walking', 'flying', 'chasing', 'hiding', 'discovering', 'climbing', 'jumping', 'swimming', 'dancing', 'singing', 'crying', 'laughing', 'screaming'];
+    const importantNouns = ['dragon', 'castle', 'forest', 'mountain', 'river', 'cave', 'treasure', 'sword', 'magic', 'wizard', 'princess', 'knight', 'monster', 'palace', 'village'];
+    
+    // Find relevant actions
+    const foundActions = actionWords.filter(word => content.includes(word));
+    if (foundActions.length > 0) {
+        key_elements.push(foundActions[0]);
+    }
+    
+    // Find relevant objects/places
+    const foundNouns = importantNouns.filter(word => content.includes(word));
+    if (foundNouns.length > 0) {
+        key_elements.push(foundNouns[0]);
+    }
+    
+    // Add setting
+    key_elements.push(`in ${storyData.setting}`);
+    
+    // Add style
+    key_elements.push(`${storyData.artStyle} style`);
+    
+    // Add dramatic descriptors based on tone
+    const toneDescriptors = {
+        'epic': 'dramatic cinematic lighting',
+        'lighthearted': 'bright cheerful colors',
+        'dramatic': 'intense dramatic atmosphere',
+        'mysterious': 'dark moody shadows'
+    };
+    
+    if (toneDescriptors[storyData.tone]) {
+        key_elements.push(toneDescriptors[storyData.tone]);
+    }
+    
+    // Create prompt around 20 words
+    return key_elements.join(', ');
 }
 
 function parseStoryManually(content, pageCount) {
@@ -565,66 +535,12 @@ async function simulateThinking(content, delay = 100) {
 async function generateTitleImage(storyData, storyTitle) {
     try {
         updateLoadingText('Creating title page illustration...');
-        const titlePrompt = `Create a stunning book cover illustration for "${storyTitle}" - a ${storyData.genre} story.
-
-MAIN ELEMENTS TO INCLUDE:
-- Main Character: ${storyData.protagonist} (describe their appearance based on common visual traits)
-- Setting: ${storyData.setting}
-- Conflict/Adventure: ${storyData.conflict}
-- Mood: ${storyData.tone}
-- Genre: ${storyData.genre}
-
-COMPOSITION REQUIREMENTS:
-- Show the main character prominently - describe what they look like based on their description
-- Include key elements from the setting in the background
-- Hint at the adventure/conflict they'll face
-- Make it dynamic and engaging like a movie poster
-- Include dramatic lighting and atmospheric effects
-- Perfect composition for a book cover with space for title text
-- Show character in an action pose or meaningful stance
-
-VISUAL STYLE:
-- Epic and cinematic
-- Rich colors and dramatic lighting  
-- Professional book cover quality
-- Captures the essence of the ${storyData.genre} genre
-- ${storyData.tone} mood and atmosphere
-
-Create a detailed prompt (200+ words) that describes the character's appearance, pose, setting, and the dramatic scene for this book cover.`;
+        // Create a direct title image prompt without using AI
+        const titlePrompt = `Epic book cover, ${storyData.protagonist} character, ${storyData.setting}, ${storyData.conflict}, ${storyData.tone} mood, ${storyData.artStyle} style, dramatic lighting, cinematic composition, detailed character design`;
         
-        const response = await fetch('https://api.x.ai/v1/chat/completions', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${aiSettings.apiKey}`
-            },
-            body: JSON.stringify({
-                model: aiSettings.model,
-                messages: [
-                    {
-                        role: 'system',
-                        content: 'You are an expert at creating detailed book cover image prompts. Focus on describing characters visually and creating epic, dramatic scenes perfect for book covers.'
-                    },
-                    {
-                        role: 'user',
-                        content: titlePrompt
-                    }
-                ],
-                max_tokens: 1000,
-                temperature: 0.7
-            })
-        });
-
-        let enhancedTitlePrompt;
-        if (response.ok) {
-            const result = await response.json();
-            enhancedTitlePrompt = result.choices[0].message.content.trim();
-        } else {
-            // Fallback if API fails
-            enhancedTitlePrompt = `Epic book cover showing ${storyData.protagonist} in ${storyData.setting}, facing ${storyData.conflict}, ${storyData.tone} mood, ${storyData.genre} style`;
-        }
+        addThinkingLine(`[TITLE] Creating book cover image...`, 'system');
         
-        const finalPrompt = enhanceImagePrompt(enhancedTitlePrompt, storyData);
+        const finalPrompt = enhanceImagePrompt(titlePrompt, storyData);
         const imageUrl = await callNovitaImageAPI(finalPrompt, storyData);
         return {
             url: imageUrl,
@@ -634,7 +550,7 @@ Create a detailed prompt (200+ words) that describes the character's appearance,
         console.error('Error generating title image:', error);
         return {
             url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzA0IiBoZWlnaHQ9IjQ0OCIgdmlld0JveD0iMCAwIDcwNCA0NDgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI3MDQiIGhlaWdodD0iNDQ4IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0zNTIgMjAwVjI0OCIgc3Ryb2tlPSIjOUI5QkEwIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8cGF0aCBkPSJNMzI4IDIyNEgzNzYiIHN0cm9rZT0iIzlCOUJBMCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPHRleHQgeD0iMzUyIiB5PSIyODAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlCOUJBMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+VGl0bGUgSW1hZ2UgRmFpbGVkPC90ZXh0Pgo8L3N2Zz4=',
-            prompt: titlePrompt
+            prompt: 'Title image generation failed'
         };
     }
 }
@@ -735,10 +651,6 @@ function truncatePrompt(prompt, maxLength = 500) {
 
 async function callNovitaImageAPI(prompt, storyData) {
     try {
-        if (!novitaClient) {
-            throw new Error('Novita client not initialized');
-        }
-
         addThinkingLine(`[IMAGE] Sending prompt to Novita AI...`, 'system');
         addThinkingLine(`[IMAGE] Model: cyberrealistic_v31`, 'system');
         addThinkingLine(`[IMAGE] Prompt: ${prompt.substring(0, 80)}...`, 'prompt');
@@ -746,79 +658,114 @@ async function callNovitaImageAPI(prompt, storyData) {
         const truncatedPrompt = truncatePrompt(prompt, 400);
         const negativePrompt = "blurry, low quality, distorted, text, watermark, signature, bad anatomy";
 
-        const params = {
-            request: {
-                model_name: "cyberrealistic_v31_62396.safetensors",
-                prompt: truncatedPrompt,
-                negative_prompt: negativePrompt,
-                width: 1024,
-                height: 768,
-                sampler_name: "DPM++ 2S a Karras",
-                guidance_scale: 7.5,
-                steps: 20,
-                image_num: 1,
-                clip_skip: 1,
-                seed: -1,
-                loras: [],
+        const requestBody = {
+            "extra": {
+                "response_image_type": "jpeg",
+                "enable_nsfw_detection": false
             },
+            "request": {
+                "model_name": "cyberrealistic_v31_62396.safetensors",
+                "prompt": truncatedPrompt,
+                "negative_prompt": negativePrompt,
+                "width": 1024,
+                "height": 768,
+                "image_num": 1,
+                "steps": 20,
+                "guidance_scale": 7.5,
+                "sampler_name": "DPM++ 2S a Karras",
+                "seed": Math.floor(Math.random() * 1000000000),
+                "loras": [],
+                "embeddings": []
+            }
         };
 
-        const response = await novitaClient.txt2ImgV3(params);
+        // Create the task
+        const createResponse = await fetch('https://api.novita.ai/v3/async/txt2img', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${aiSettings.novitaApiKey}`
+            },
+            body: JSON.stringify(requestBody)
+        });
         
-        if (!response || !response.task_id) {
-            throw new Error('No task ID received from Novita API');
+        if (!createResponse.ok) {
+            const errorText = await createResponse.text();
+            addThinkingLine(`[ERROR] API request failed: ${createResponse.status}`, 'system');
+            throw new Error(`HTTP error! status: ${createResponse.status}, body: ${errorText}`);
         }
-
-        addThinkingLine(`[IMAGE] Task queued: ${response.task_id}`, 'system');
-        addThinkingLine(`[IMAGE] Waiting for image generation...`, 'system');
-
-        // Poll for completion
-        return await pollForImageCompletion(response.task_id);
+        
+        const createResult = await createResponse.json();
+        
+        if (createResult && createResult.task_id) {
+            addThinkingLine(`[IMAGE] Task queued: ${createResult.task_id}`, 'system');
+            addThinkingLine(`[IMAGE] Waiting for image generation...`, 'system');
+            
+            return new Promise((resolve, reject) => {
+                const timer = setInterval(async () => {
+                    try {
+                        // Check task status
+                        const statusResponse = await fetch(`https://api.novita.ai/v3/async/task-result?task_id=${createResult.task_id}`, {
+                            method: 'GET',
+                            headers: {
+                                'Authorization': `Bearer ${aiSettings.novitaApiKey}`
+                            }
+                        });
+                        
+                        if (!statusResponse.ok) {
+                            throw new Error(`Status check failed: ${statusResponse.status}`);
+                        }
+                        
+                        const progressRes = await statusResponse.json();
+                        
+                        if (progressRes.task.status === 'TASK_STATUS_SUCCEED') {
+                            addThinkingLine(`[IMAGE] Generation completed successfully!`, 'response');
+                            clearInterval(timer);
+                            if (progressRes.images && progressRes.images.length > 0) {
+                                resolve(progressRes.images[0].image_url);
+                            } else {
+                                reject(new Error('No images returned'));
+                            }
+                        }
+                        
+                        if (progressRes.task.status === 'TASK_STATUS_FAILED') {
+                            addThinkingLine(`[ERROR] Image generation failed: ${progressRes.task.reason}`, 'system');
+                            clearInterval(timer);
+                            reject(new Error(progressRes.task.reason || 'Image generation failed'));
+                        }
+                        
+                        if (progressRes.task.status === 'TASK_STATUS_QUEUED') {
+                            // Only show queue status occasionally to avoid spam
+                            // addThinkingLine(`[IMAGE] Still in queue...`, 'system');
+                        }
+                        
+                        if (progressRes.task.status === 'TASK_STATUS_PROCESSING') {
+                            // addThinkingLine(`[IMAGE] Processing...`, 'system');
+                        }
+                        
+                    } catch (err) {
+                        console.error('Progress check error:', err);
+                        clearInterval(timer);
+                        reject(err);
+                    }
+                }, 2000); // Check every 2 seconds
+                
+                // Timeout after 5 minutes
+                setTimeout(() => {
+                    clearInterval(timer);
+                    reject(new Error('Image generation timeout'));
+                }, 300000);
+            });
+        } else {
+            throw new Error('Failed to create image generation task');
+        }
         
     } catch (error) {
         console.error('Error calling Novita API:', error);
         addThinkingLine(`[ERROR] Image generation failed: ${error.message}`, 'system');
         // Return blank/error image instead of random placeholders
-        return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzA0IiBoZWlnaHQ9IjQ0OCIgdmlld0JveD0iMCAwIDcwNCA0NDgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI3MDQiIGhlaWdodD0iNDQ4IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0zNTIgMjAwVjI0OCIgc3Ryb2tlPSIjOUI5QkEwIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8cGF0aCBkPSJNMzI4IDIyNEgzNzYiIHN0cm9rZT0iIzlCOUJBMCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPHRleHQgeD0iMzUyIiB5PSIyODAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlCOUJBMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+SW1hZ2UgR2VuZXJhdGlvbiBGYWlsZWQ8L3RleHQ+Cjwvc3ZnPg==';
+        return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzA0IiBoZWlnaHQ9IjQ0OCIgdmlld0JveD0iMCAwIDcwNCA0NDgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI3MDQiIGhlaWdodD0iNDQ4IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0zNTIgMjAwVjI0OCIgc3Ryb2tlPSIjOUI5QkEwIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8cGF0aCBkPSJNMzI4IDIyNEgzNzYiIHN0cm9rZT0iIzlCOUJBMCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcT0icm91bmQiLz4KPHRleHQgeD0iMzUyIiB5PSIyODAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlCOUJBMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+SW1hZ2UgR2VuZXJhdGlvbiBGYWlsZWQ8L3RleHQ+Cjwvc3ZnPg==';
     }
-}
-
-async function pollForImageCompletion(taskId) {
-    const maxAttempts = 60; // 5 minutes with 5-second intervals
-    let attempts = 0;
-    
-    while (attempts < maxAttempts) {
-        try {
-            const progressRes = await novitaClient.progress({ task_id: taskId });
-            
-            if (progressRes.task.status === TaskStatus.SUCCEED) {
-                addThinkingLine(`[IMAGE] Generation completed successfully!`, 'response');
-                if (progressRes.images && progressRes.images.length > 0) {
-                    return progressRes.images[0].image_url;
-                } else {
-                    throw new Error('No images in successful response');
-                }
-            } else if (progressRes.task.status === TaskStatus.FAILED) {
-                addThinkingLine(`[ERROR] Image generation failed: ${progressRes.task.reason}`, 'system');
-                throw new Error(`Image generation failed: ${progressRes.task.reason || 'Unknown error'}`);
-            } else if (progressRes.task.status === TaskStatus.QUEUED) {
-                if (attempts % 6 === 0) { // Show every 30 seconds
-                    addThinkingLine(`[IMAGE] Still in queue... (${Math.floor(attempts * 5 / 60)}m ${(attempts * 5) % 60}s)`, 'system');
-                }
-            }
-            
-            // Still processing, wait and try again
-            await new Promise(resolve => setTimeout(resolve, 5000));
-            attempts++;
-            
-        } catch (error) {
-            console.error(`Polling attempt ${attempts + 1} failed:`, error);
-            attempts++;
-            await new Promise(resolve => setTimeout(resolve, 5000));
-        }
-    }
-    
-    throw new Error('Image generation timed out after 5 minutes');
 }
 
 function displayStoryBook(storyPages, images, titleImage) {
