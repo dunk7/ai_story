@@ -154,7 +154,8 @@ function handleFormSubmit(e) {
         fontStyle: document.getElementById('font-style').value,
         colorTheme: document.getElementById('color-theme').value,
         includeImages: document.getElementById('include-images').value === 'yes',
-        artStyle: document.getElementById('art-style').value
+        artStyle: document.getElementById('art-style').value,
+        imageModel: document.getElementById('image-model').value || 'cyberrealistic'
     };
     
     // Validate required fields
@@ -386,6 +387,7 @@ async function generateImagePrompts(storyPages, storyData) {
         
         const pageContent = storyPages.pages[i];
         const imagePrompt = createIndividualPagePrompt(pageContent, i + 1, storyData);
+        console.log(`🎨 Image Prompt ${i + 1}:`, imagePrompt);
         imagePrompts.push(imagePrompt);
     }
     
@@ -649,10 +651,18 @@ function truncatePrompt(prompt, maxLength = 500) {
     }
 }
 
+function getModelName(modelKey) {
+    const models = {
+        'cyberrealistic': 'cyberrealistic_v31_62396.safetensors',
+        'anythingelse': 'anythingelseV4_v45_5768.safetensors'
+    };
+    return models[modelKey] || models['cyberrealistic'];
+}
+
 async function callNovitaImageAPI(prompt, storyData) {
     try {
         addThinkingLine(`[IMAGE] Sending prompt to Novita AI...`, 'system');
-        addThinkingLine(`[IMAGE] Model: cyberrealistic_v31`, 'system');
+        addThinkingLine(`[IMAGE] Model: ${getModelName(storyData.imageModel)}`, 'system');
         addThinkingLine(`[IMAGE] Prompt: ${prompt.substring(0, 80)}...`, 'prompt');
 
         const truncatedPrompt = truncatePrompt(prompt, 400);
@@ -664,7 +674,7 @@ async function callNovitaImageAPI(prompt, storyData) {
                 "enable_nsfw_detection": false
             },
             "request": {
-                "model_name": "cyberrealistic_v31_62396.safetensors",
+                "model_name": getModelName(storyData.imageModel),
                 "prompt": truncatedPrompt,
                 "negative_prompt": negativePrompt,
                 "width": 1024,
@@ -851,9 +861,50 @@ function resetApp() {
 }
 
 function editStory() {
-    // Go back to the form to edit story parameters
-    goToStep(2);
-    showNotification('Edit your story settings and regenerate', 'info');
+    // Enable inline editing of story text
+    const storyPages = document.querySelectorAll('.story-page .page-text');
+    const editBtn = document.getElementById('edit-story-btn');
+    
+    if (editBtn.textContent.includes('Edit')) {
+        // Enter edit mode
+        storyPages.forEach((pageText, index) => {
+            const currentText = pageText.textContent;
+            const textarea = document.createElement('textarea');
+            textarea.value = currentText;
+            textarea.className = 'edit-textarea';
+            textarea.style.cssText = `
+                width: 100%;
+                min-height: 100px;
+                padding: 1rem;
+                border: 2px solid #667eea;
+                border-radius: 8px;
+                font-family: inherit;
+                font-size: inherit;
+                line-height: 1.6;
+                resize: vertical;
+                background: #f8fafc;
+            `;
+            pageText.style.display = 'none';
+            pageText.parentNode.insertBefore(textarea, pageText.nextSibling);
+        });
+        
+        editBtn.innerHTML = '<i class="fas fa-save"></i> Save Changes';
+        editBtn.className = 'btn btn-primary';
+        showNotification('Edit mode enabled. Modify your story text and click Save.', 'info');
+    } else {
+        // Save changes
+        const textareas = document.querySelectorAll('.edit-textarea');
+        textareas.forEach((textarea, index) => {
+            const pageText = textarea.previousSibling;
+            pageText.textContent = textarea.value;
+            pageText.style.display = 'block';
+            textarea.remove();
+        });
+        
+        editBtn.innerHTML = '<i class="fas fa-edit"></i> Edit Story';
+        editBtn.className = 'btn btn-outline';
+        showNotification('Story changes saved!', 'success');
+    }
 }
 
 async function regenerateImage(pageIndex) {
