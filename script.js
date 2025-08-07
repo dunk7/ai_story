@@ -90,12 +90,7 @@ function initializeEventListeners() {
         }
     });
     
-    // Auto-advance from genre selection
-    setTimeout(() => {
-        if (currentStep === 1 && selectedGenre) {
-            goToStep(2);
-        }
-    }, 1000);
+    // No auto-advance timeout needed - genre selection advances immediately
 }
 
 function selectGenre(card) {
@@ -106,16 +101,16 @@ function selectGenre(card) {
     card.classList.add('selected');
     selectedGenre = card.dataset.genre;
     
-    // Add smooth transition effect
+    // Add quick visual feedback
     card.style.transform = 'scale(1.05)';
     setTimeout(() => {
         card.style.transform = '';
-    }, 200);
+    }, 150);
     
-    // Auto-advance after selection
+    // Advance immediately
     setTimeout(() => {
         goToStep(2);
-    }, 800);
+    }, 200);
 }
 
 function goToStep(step) {
@@ -350,7 +345,7 @@ async function generateImagePrompts(storyPages, storyData) {
                     messages: [
                         {
                             role: 'system',
-                            content: 'You are an expert at analyzing story content and determining the best visual representation for illustration. You must decide whether to show: 1) The main character in action, 2) The environment/setting, or 3) A close-up of an important object/detail. Always choose what would be most visually compelling and story-relevant.'
+                            content: 'You are an expert at creating compelling image prompts for story illustrations. Analyze the story content and create prompts that show ACTION, CHARACTERS, and EVENTS happening - not empty scenes. If there\'s a bear chasing someone, show the bear chasing the person. If someone is fighting a dragon, show the fight. If there\'s dialogue, show the characters speaking. Always prioritize showing what is actually HAPPENING in the story over just showing empty locations.'
                         },
                         {
                             role: 'user',
@@ -377,66 +372,43 @@ async function generateImagePrompts(storyPages, storyData) {
 }
 
 function createIndividualPagePrompt(pageContent, pageNumber, storyData) {
-    // Determine image focus type with strong bias toward environments and settings
-    const totalPages = storyData.pages;
-    let focusType;
-    
-    // 70% environment/setting focus, 20% objects/details, 10% atmosphere/mood
-    const rand = Math.random();
-    if (pageNumber === 1) {
-        focusType = 'wide-establishing'; // Always start with establishing shot
-    } else if (pageNumber === totalPages) {
-        focusType = 'atmosphere'; // Final page - mood/conclusion
-    } else if (rand < 0.4) {
-        focusType = 'environment'; // Close environment shots
-    } else if (rand < 0.7) {
-        focusType = 'wide-establishing'; // Wide landscape/setting shots
-    } else if (rand < 0.9) {
-        focusType = 'object'; // Important objects/details
-    } else {
-        focusType = 'atmosphere'; // Weather/mood
-    }
-    
-    let focusInstruction;
-    switch (focusType) {
-        case 'wide-establishing':
-            focusInstruction = "Create a WIDE ESTABLISHING SHOT of the setting or location. Show expansive landscapes, cityscapes, vast interiors, or grand architectural views. Focus on scale, grandeur, and the overall environment. Avoid close-ups of people - show the world itself.";
-            break;
-        case 'environment':
-            focusInstruction = "Focus on specific environmental details and setting elements. Show detailed views of buildings, rooms, natural features, or technological environments. Capture the texture, atmosphere, and character of the location itself.";
-            break;
-        case 'object':
-            focusInstruction = "Focus on an important object, artifact, vehicle, or architectural detail mentioned in the page. Show detailed close-ups of significant items, magical artifacts, technology, or environmental features that drive the story.";
-            break;
-        case 'atmosphere':
-            focusInstruction = "Focus on weather, lighting, mood, and atmospheric conditions. Show dramatic skies, lighting effects, weather phenomena, or environmental conditions that enhance the emotional tone of the scene.";
-            break;
-    }
-    
-    return `Create a detailed image prompt for this story page:
+    return `Analyze this story page and create the most compelling image prompt:
 
 PAGE ${pageNumber} CONTENT:
 "${pageContent}"
 
 STORY CONTEXT:
-- Genre: ${storyData.genre}
+- Main Character: ${storyData.protagonist}
 - Setting: ${storyData.setting}
+- Main Conflict: ${storyData.conflict}
+- Genre: ${storyData.genre}
 - Art Style: ${storyData.artStyle}
 
-FOCUS INSTRUCTION: ${focusInstruction}
+INSTRUCTIONS FOR CREATING THE BEST IMAGE:
+1. READ the page content carefully and identify what is ACTUALLY HAPPENING
+2. If there are characters doing things, SHOW them doing those things
+3. If there's action (fighting, running, talking, etc.), SHOW the action
+4. If there's danger or conflict, SHOW the danger/conflict
+5. If characters are interacting, SHOW the interaction
+6. Balance action with the environment - show both characters AND setting
+7. Use "the character" or "a person" instead of names/pronouns
+
+PRIORITY ORDER:
+1st: Show characters performing actions mentioned in the text
+2nd: Show important objects or creatures mentioned
+3rd: Show the environment that supports the action
 
 CRITICAL REQUIREMENTS:
-- PRIORITIZE environments, settings, and locations over character close-ups
-- NEVER use character names or pronouns (he, she, they, him, her, his, hers, their)
-- If people must be included, show them as small figures within the larger environment
-- ${focusInstruction}
-- Emphasize architectural details, natural features, and world-building elements
-- Include rich environmental textures, lighting, and atmospheric effects
-- Make the setting itself the star of the image
-- Create cinematic, visually striking compositions
-- Be detailed and descriptive (aim for 120-180 words)
+- Focus on WHAT IS HAPPENING, not just where it's happening
+- If someone is being chased, show the chase
+- If someone is talking, show them talking
+- If someone discovers something, show the discovery
+- Include the protagonist/main character when they're involved in the scene
+- Make it dramatic and engaging, not static or empty
+- Be specific about character actions, expressions, and poses
+- Include environmental details that enhance the action
 
-Create ONLY the detailed image prompt, no explanation.`;
+Create a detailed image prompt (150-200 words) that shows the ACTION and CHARACTERS from this page.`;
 }
 
 function parseStoryManually(content, pageCount) {
@@ -495,21 +467,75 @@ function updateLoadingText(text) {
 async function generateTitleImage(storyData, storyTitle) {
     try {
         updateLoadingText('Creating title page illustration...');
-        const titlePrompt = `Create a beautiful title page illustration for a ${storyData.genre} story called "${storyTitle}". 
-        Show the main environment of ${storyData.setting}. 
-        Make it magical and inviting, like the cover of a storybook. Include the mood: ${storyData.tone}. 
-        Perfect for a title page with text overlay. Focus on the world and setting rather than characters.`;
+        const titlePrompt = `Create a stunning book cover illustration for "${storyTitle}" - a ${storyData.genre} story.
+
+MAIN ELEMENTS TO INCLUDE:
+- Main Character: ${storyData.protagonist} (describe their appearance based on common visual traits)
+- Setting: ${storyData.setting}
+- Conflict/Adventure: ${storyData.conflict}
+- Mood: ${storyData.tone}
+- Genre: ${storyData.genre}
+
+COMPOSITION REQUIREMENTS:
+- Show the main character prominently - describe what they look like based on their description
+- Include key elements from the setting in the background
+- Hint at the adventure/conflict they'll face
+- Make it dynamic and engaging like a movie poster
+- Include dramatic lighting and atmospheric effects
+- Perfect composition for a book cover with space for title text
+- Show character in an action pose or meaningful stance
+
+VISUAL STYLE:
+- Epic and cinematic
+- Rich colors and dramatic lighting  
+- Professional book cover quality
+- Captures the essence of the ${storyData.genre} genre
+- ${storyData.tone} mood and atmosphere
+
+Create a detailed prompt (200+ words) that describes the character's appearance, pose, setting, and the dramatic scene for this book cover.`;
         
-        const enhancedPrompt = enhanceImagePrompt(titlePrompt, storyData);
-        const imageUrl = await callNovitaImageAPI(enhancedPrompt, storyData);
+        const response = await fetch('https://api.x.ai/v1/chat/completions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${aiSettings.apiKey}`
+            },
+            body: JSON.stringify({
+                model: aiSettings.model,
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'You are an expert at creating detailed book cover image prompts. Focus on describing characters visually and creating epic, dramatic scenes perfect for book covers.'
+                    },
+                    {
+                        role: 'user',
+                        content: titlePrompt
+                    }
+                ],
+                max_tokens: 1000,
+                temperature: 0.7
+            })
+        });
+
+        let enhancedTitlePrompt;
+        if (response.ok) {
+            const result = await response.json();
+            enhancedTitlePrompt = result.choices[0].message.content.trim();
+        } else {
+            // Fallback if API fails
+            enhancedTitlePrompt = `Epic book cover showing ${storyData.protagonist} in ${storyData.setting}, facing ${storyData.conflict}, ${storyData.tone} mood, ${storyData.genre} style`;
+        }
+        
+        const finalPrompt = enhanceImagePrompt(enhancedTitlePrompt, storyData);
+        const imageUrl = await callNovitaImageAPI(finalPrompt, storyData);
         return {
             url: imageUrl,
-            prompt: enhancedPrompt
+            prompt: finalPrompt
         };
     } catch (error) {
         console.error('Error generating title image:', error);
         return {
-            url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzA0IiBoZWlnaHQ9IjQ0OCIgdmlld0JveD0iMCAwIDcwNCA0NDgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI3MDQiIGhlaWdodD0iNDQ4IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0zNTIgMjAwVjI0OCIgc3Ryb2tlPSIjOUI5QkEwIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8cGF0aCBkPSJNMzI4IDIyNEgzNzYiIHN0cm9rZT0iIzlCOUJBMCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcT0icm91bmQiLz4KPHRleHQgeD0iMzUyIiB5PSIyODAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlCOUJBMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+VGl0bGUgSW1hZ2UgRmFpbGVkPC90ZXh0Pgo8L3N2Zz4=',
+            url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzA0IiBoZWlnaHQ9IjQ0OCIgdmlld0JveD0iMCAwIDcwNCA0NDgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI3MDQiIGhlaWdodD0iNDQ4IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0zNTIgMjAwVjI0OCIgc3Ryb2tlPSIjOUI5QkEwIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8cGF0aCBkPSJNMzI4IDIyNEgzNzYiIHN0cm9rZT0iIzlCOUJBMCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPHRleHQgeD0iMzUyIiB5PSIyODAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlCOUJBMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+VGl0bGUgSW1hZ2UgRmFpbGVkPC90ZXh0Pgo8L3N2Zz4=',
             prompt: titlePrompt
         };
     }
