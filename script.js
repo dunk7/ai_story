@@ -214,9 +214,18 @@ async function generateStory() {
             const titleImage = await generateTitleImage(storyData, storyPages.title);
             
             updateProgress(60);
-            updateLoadingText('Generating image descriptions...');
-            addThinkingLine(`[IMAGES] Generating image prompts...`, 'system');
-            const imagePrompts = await generateImagePrompts(storyPages, storyData);
+            
+            // Use AI-generated image prompts if available, otherwise fallback to manual generation
+            let imagePrompts;
+            if (storyPages.imagePrompts && storyPages.imagePrompts.length > 0) {
+                addThinkingLine(`[IMAGES] Using AI-generated image prompts from Grok`, 'system');
+                console.log('🎨 AI-Generated Image Prompts:', storyPages.imagePrompts);
+                imagePrompts = storyPages.imagePrompts;
+            } else {
+                updateLoadingText('Generating image descriptions...');
+                addThinkingLine(`[IMAGES] Fallback: Generating image prompts manually...`, 'system');
+                imagePrompts = await generateImagePrompts(storyPages, storyData);
+            }
             
             // Generate page images
             updateProgress(70);
@@ -248,7 +257,7 @@ async function generateStory() {
         
     } catch (error) {
         console.error('Error generating story:', error);
-        addThinkingLine(`[ERROR] Generation failed: ${error.message}`, 'system');
+        addThinkingLine(`[ERROR] Generation failed: ${error.message}`, 'error');
         showNotification('Failed to generate story. Please try again.', 'error');
         goToStep(2);
     }
@@ -274,7 +283,7 @@ async function generateStoryPages(data) {
                 messages: [
                     {
                         role: 'system',
-                        content: 'You are a creative storyteller who creates illustrated children\'s books and novels. Format your response as a JSON object with a "title" field and a "pages" array. Each page should have 1-2 paragraphs of story content.'
+                        content: 'You are a creative storyteller who creates illustrated children\'s books and novels. Format your response as a JSON object with "title", "pages", and "imagePrompts" fields. Each page should have 1-2 paragraphs of story content, and you must generate a 10-50 word image prompt for each page.'
                     },
                     {
                         role: 'user',
@@ -287,7 +296,7 @@ async function generateStoryPages(data) {
         });
 
         if (!response.ok) {
-            addThinkingLine(`[ERROR] API request failed: ${response.status}`, 'system');
+            addThinkingLine(`[ERROR] API request failed: ${response.status}`, 'error');
             throw new Error(`Story API Error: ${response.status}`);
         }
 
@@ -300,6 +309,11 @@ async function generateStoryPages(data) {
             const parsed = JSON.parse(content);
             if (parsed.title && parsed.pages) {
                 addThinkingLine(`[GROK] Story parsed successfully: "${parsed.title}"`, 'response');
+                if (parsed.imagePrompts && parsed.imagePrompts.length > 0) {
+                    addThinkingLine(`[GROK] Found ${parsed.imagePrompts.length} AI-generated image prompts`, 'response');
+                } else {
+                    addThinkingLine(`[GROK] No image prompts found, will use fallback method`, 'system');
+                }
                 return parsed;
             }
         } catch (e) {
@@ -312,7 +326,7 @@ async function generateStoryPages(data) {
         
     } catch (error) {
         console.error('Error generating story pages:', error);
-        addThinkingLine(`[ERROR] Story generation failed: ${error.message}`, 'system');
+                    addThinkingLine(`[ERROR] Story generation failed: ${error.message}`, 'error');
         addThinkingLine(`[FALLBACK] Using demo story...`, 'system');
         // Fallback to simple demo
         return generateFallbackStory(data);
@@ -359,6 +373,11 @@ Format your response as a JSON object with this structure:
     "Page 1 content (${pageText})",
     "Page 2 content (${pageText})",
     ...
+  ],
+  "imagePrompts": [
+    "10-50 word image prompt for page 1",
+    "10-50 word image prompt for page 2",
+    ...
   ]
 }
 
@@ -372,7 +391,9 @@ Each page should contain ${pageText} that advance the story. The story should ha
 Make each page engaging and visual, as it will have an accompanying illustration.
 - For short text: Focus on key moments, dialogue, and action
 - For medium text: Include good detail and scene description
-- For long text: Provide rich detail, character thoughts, and atmospheric description`;
+- For long text: Provide rich detail, character thoughts, and atmospheric description
+
+IMPORTANT: For each page, generate a corresponding image prompt (10-50 words) that captures the key visual elements, characters, setting, and mood of that specific page. Consider the ${data.artStyle || 'illustration'} art style and ${data.tone} tone when creating these prompts. Each image prompt should be specific enough to generate a compelling illustration that matches the story content.`;
 
     return prompt;
 }
@@ -387,7 +408,7 @@ async function generateImagePrompts(storyPages, storyData) {
         
         const pageContent = storyPages.pages[i];
         const imagePrompt = createIndividualPagePrompt(pageContent, i + 1, storyData);
-        console.log(`🎨 Image Prompt ${i + 1}:`, imagePrompt);
+        console.log(`🎨 Manual Image Prompt ${i + 1}:`, imagePrompt);
         imagePrompts.push(imagePrompt);
     }
     
@@ -581,7 +602,7 @@ async function generateStoryImages(imagePrompts, storyData) {
             addThinkingLine(`[IMAGES] Image ${i + 1}/${totalImages} completed`, 'response');
         } catch (error) {
             console.error(`Error generating image ${i + 1}:`, error);
-            addThinkingLine(`[ERROR] Image ${i + 1} failed, using placeholder`, 'system');
+            addThinkingLine(`[ERROR] Image ${i + 1} failed, using placeholder`, 'error');
             // Add blank image for failed generation
             images.push({
                 url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzA0IiBoZWlnaHQ9IjQ0OCIgdmlld0JveD0iMCAwIDcwNCA0NDgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI3MDQiIGhlaWdodD0iNDQ4IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0zNTIgMjAwVjI0OCIgc3Ryb2tlPSIjOUI5QkEwIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8cGF0aCBkPSJNMzI4IDIyNEgzNzYiIHN0cm9rZT0iIzlCOUJBMCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPHRleHQgeD0iMzUyIiB5PSIyODAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlCOUJBMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+SW1hZ2UgR2VuZXJhdGlvbiBGYWlsZWQ8L3RleHQ+Cjwvc3ZnPg==',
@@ -666,7 +687,7 @@ async function callNovitaImageAPI(prompt, storyData) {
         addThinkingLine(`[IMAGE] Prompt: ${prompt.substring(0, 80)}...`, 'prompt');
 
         const truncatedPrompt = truncatePrompt(prompt, 400);
-        const negativePrompt = "blurry, low quality, distorted, text, watermark, signature, bad anatomy";
+        const negativePrompt = "blurry, low quality, distorted, text, watermark, signature, bad anatomy, deformed, ugly, mutated, extra limbs, poorly drawn, amateur";
 
         const requestBody = {
             "extra": {
@@ -680,9 +701,9 @@ async function callNovitaImageAPI(prompt, storyData) {
                 "width": 1024,
                 "height": 768,
                 "image_num": 1,
-                "steps": 20,
-                "guidance_scale": 7.5,
-                "sampler_name": "DPM++ 2S a Karras",
+                "steps": 25,
+                "guidance_scale": 8.0,
+                "sampler_name": "DPM++ 2M Karras",
                 "seed": Math.floor(Math.random() * 1000000000),
                 "loras": [],
                 "embeddings": []
@@ -701,7 +722,7 @@ async function callNovitaImageAPI(prompt, storyData) {
         
         if (!createResponse.ok) {
             const errorText = await createResponse.text();
-            addThinkingLine(`[ERROR] API request failed: ${createResponse.status}`, 'system');
+            addThinkingLine(`[ERROR] API request failed: ${createResponse.status}`, 'error');
             throw new Error(`HTTP error! status: ${createResponse.status}, body: ${errorText}`);
         }
         
@@ -739,7 +760,7 @@ async function callNovitaImageAPI(prompt, storyData) {
                         }
                         
                         if (progressRes.task.status === 'TASK_STATUS_FAILED') {
-                            addThinkingLine(`[ERROR] Image generation failed: ${progressRes.task.reason}`, 'system');
+                            addThinkingLine(`[ERROR] Image generation failed: ${progressRes.task.reason}`, 'error');
                             clearInterval(timer);
                             reject(new Error(progressRes.task.reason || 'Image generation failed'));
                         }
@@ -772,7 +793,7 @@ async function callNovitaImageAPI(prompt, storyData) {
         
     } catch (error) {
         console.error('Error calling Novita API:', error);
-        addThinkingLine(`[ERROR] Image generation failed: ${error.message}`, 'system');
+        addThinkingLine(`[ERROR] Image generation failed: ${error.message}`, 'error');
         // Return blank/error image instead of random placeholders
         return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzA0IiBoZWlnaHQ9IjQ0OCIgdmlld0JveD0iMCAwIDcwNCA0NDgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI3MDQiIGhlaWdodD0iNDQ4IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0zNTIgMjAwVjI0OCIgc3Ryb2tlPSIjOUI5QkEwIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8cGF0aCBkPSJNMzI4IDIyNEgzNzYiIHN0cm9rZT0iIzlCOUJBMCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcT0icm91bmQiLz4KPHRleHQgeD0iMzUyIiB5PSIyODAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlCOUJBMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+SW1hZ2UgR2VuZXJhdGlvbiBGYWlsZWQ8L3RleHQ+Cjwvc3ZnPg==';
     }
@@ -806,7 +827,6 @@ function displayStoryBook(storyPages, images, titleImage) {
     
     titleHTML += `
         <h1>${storyPages.title}</h1>
-        <div class="story-subtitle">An AI-Generated Story</div>
         <div class="story-meta-page">
             ${storyPages.pages.length} pages • ${storyData.genre.charAt(0).toUpperCase() + storyData.genre.slice(1)}
         </div>
@@ -853,11 +873,35 @@ function resetApp() {
     // Reset form
     storyForm.reset();
     
+    // Set back to default values
+    document.getElementById('tone').value = 'epic';
+    document.getElementById('pages').value = '5';
+    document.getElementById('text-length').value = 'medium';
+    document.getElementById('font-style').value = 'classic';
+    document.getElementById('color-theme').value = 'enchanted';
+    document.getElementById('include-images').value = 'yes';
+    document.getElementById('image-model').value = 'cyberrealistic';
+    document.getElementById('art-style').value = 'photorealistic';
+    
+    // Show image settings since images are enabled by default
+    const imageSettings = document.getElementById('image-settings');
+    if (imageSettings) {
+        imageSettings.style.display = 'block';
+    }
+    
     // Clear selections
     genreCards.forEach(card => card.classList.remove('selected'));
     
+    // Clear story display
+    const storyBook = document.getElementById('story-book');
+    if (storyBook) {
+        storyBook.innerHTML = '';
+    }
+    
     // Go to first step
     goToStep(1);
+    
+    showNotification('Ready to create a new story!', 'success');
 }
 
 function editStory() {
