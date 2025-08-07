@@ -1,0 +1,22 @@
+# API Keys and Configuration
+config.js
+
+# Node modules (if using npm in the future)
+node_modules/
+
+# Environment variables
+.env
+.env.local
+
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log

@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Story Generator</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Crimson+Text:ital,wght@0,400;0,600;1,400&family=Cinzel:wght@400;500;600&family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <div class="logo">
+                <i class="fas fa-feather-alt"></i>
+                <h1>Story Forge</h1>
+            </div>
+            <p class="tagline">Create captivating stories with the power of AI</p>
+        </header>
+
+        <!-- Step 1: Story Type Selection -->
+        <div id="step-1" class="step active">
+            <div class="step-header">
+                <h2>What kind of story would you like to create?</h2>
+                <p>Choose a genre to get started</p>
+            </div>
+            
+            <div class="genre-grid">
+                <div class="genre-card" data-genre="fantasy">
+                    <div class="genre-icon">🏰</div>
+                    <h3>Fantasy</h3>
+                    <p>Magical worlds with dragons, wizards, and epic quests</p>
+                </div>
+                
+                <div class="genre-card" data-genre="sci-fi">
+                    <div class="genre-icon">🚀</div>
+                    <h3>Science Fiction</h3>
+                    <p>Futuristic adventures with technology and space exploration</p>
+                </div>
+                
+                <div class="genre-card" data-genre="mystery">
+                    <div class="genre-icon">🔍</div>
+                    <h3>Mystery</h3>
+                    <p>Intriguing puzzles, secrets, and detective work</p>
+                </div>
+                
+                <div class="genre-card" data-genre="romance">
+                    <div class="genre-icon">💝</div>
+                    <h3>Romance</h3>
+                    <p>Love stories with passion, connection, and emotion</p>
+                </div>
+                
+                <div class="genre-card" data-genre="adventure">
+                    <div class="genre-icon">⛵</div>
+                    <h3>Adventure</h3>
+                    <p>Thrilling journeys with danger and excitement</p>
+                </div>
+                
+                <div class="genre-card" data-genre="horror">
+                    <div class="genre-icon">👻</div>
+                    <h3>Horror</h3>
+                    <p>Spine-chilling tales of fear and suspense</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 2: Story Details -->
+        <div id="step-2" class="step">
+            <div class="step-header">
+                <h2>Tell us more about your story</h2>
+                <p>Help us craft the perfect narrative for you</p>
+            </div>
+            
+            <form class="story-form">
+                <div class="form-group">
+                    <label for="protagonist">Who is the main character?</label>
+                    <input type="text" id="protagonist" placeholder="e.g., A young wizard, A space explorer, A detective..." required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="setting">Where does the story take place?</label>
+                    <input type="text" id="setting" placeholder="e.g., Ancient castle, Space station, Victorian London..." required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="conflict">What challenge or conflict should they face?</label>
+                    <textarea id="conflict" placeholder="e.g., Must save the kingdom, Uncover a conspiracy, Find true love..." required></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label for="tone">What tone should the story have?</label>
+                    <select id="tone" required>
+                        <option value="">Choose a tone...</option>
+                        <option value="lighthearted">Lighthearted & Fun</option>
+                        <option value="dramatic">Dramatic & Intense</option>
+                        <option value="mysterious">Dark & Mysterious</option>
+                        <option value="inspirational">Inspirational & Uplifting</option>
+                        <option value="humorous">Humorous & Witty</option>
+                        <option value="epic">Epic & Heroic</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="pages">How many pages should the story book have?</label>
+                    <select id="pages" required>
+                        <option value="">Choose page count...</option>
+                        <option value="5">5 pages (Quick read)</option>
+                        <option value="10">10 pages (Standard book)</option>
+                        <option value="15">15 pages (Extended story)</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="inspiration">Additional inspiration (optional):</label>
+                    <input type="text" id="inspiration" placeholder="e.g., ancient artifacts, time travel, lost memories, talking animals...">
+                    <small class="help-text">Add keywords or themes to inspire unique story elements</small>
+                </div>
+                
+                <div class="form-section">
+                    <h3>📖 Story Formatting</h3>
+                    <p class="section-subtitle">Customize how your story looks and reads</p>
+                    
+                    <div class="form-group">
+                        <label for="text-length">Text length per page:</label>
+                        <select id="text-length" required>
+                            <option value="">Choose length...</option>
+                            <option value="short">Short (1-2 sentences per page)</option>
+                            <option value="medium">Medium (1-2 paragraphs per page)</option>
+                            <option value="long">Long (2-3 paragraphs per page)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="font-style">Story font style:</label>
+                        <select id="font-style" required>
+                            <option value="">Choose font...</option>
+                            <option value="classic">Classic (Georgia - Traditional)</option>
+                            <option value="modern">Modern (Inter - Clean)</option>
+                            <option value="storybook">Storybook (Crimson Text - Elegant)</option>
+                            <option value="fantasy">Fantasy (Cinzel - Decorative)</option>
+                            <option value="playful">Playful (Quicksand - Fun)</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="color-theme">Color theme:</label>
+                        <select id="color-theme" required>
+                            <option value="">Choose theme...</option>
+                            <option value="enchanted">Enchanted Forest (Purple & Green)</option>
+                            <option value="adventure">Adventure (Blue & Orange)</option>
+                            <option value="magical">Magical (Pink & Gold)</option>
+                            <option value="mystery">Mystery (Dark Blue & Silver)</option>
+                            <option value="warm">Warm Sunset (Orange & Red)</option>
+                            <option value="cool">Cool Ocean (Blue & Teal)</option>
+                            <option value="classic">Classic (Black & White)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-section">
+                    <h3>📸 Story Illustrations</h3>
+                    <p class="section-subtitle">Add AI-generated images to bring your story to life</p>
+                    
+                    <div class="form-group">
+                        <label for="include-images">Include illustrations:</label>
+                        <select id="include-images" required>
+                            <option value="">Choose option...</option>
+                            <option value="yes">Yes - One image per page</option>
+                            <option value="no">No images</option>
+                        </select>
+                    </div>
+                    
+                    <div class="image-settings" id="image-settings" style="display: none;">
+                        <div class="form-group">
+                           <label for="art-style">Art style:</label>
+                           <select id="art-style" required>
+                               <option value="">Choose style...</option>
+                               <optgroup label="Cartoon & Animated">
+                                   <option value="disney-pixar">Disney/Pixar Style</option>
+                                   <option value="comic-book">Comic Book Style</option>
+                                   <option value="anime-manga">Anime/Manga Style</option>
+                                   <option value="watercolor-cartoon">Watercolor Cartoon</option>
+                                   <option value="hand-drawn">Hand-drawn Illustration</option>
+                                   <option value="childrens-book">Children's Book Style</option>
+                                   <option value="vector-art">Vector Art Style</option>
+                                   <option value="sketch-style">Pencil Sketch Style</option>
+                               </optgroup>
+                               <optgroup label="Realistic & Artistic">
+                                   <option value="photorealistic">Photorealistic</option>
+                                   <option value="cinematic">Cinematic Photography</option>
+                                   <option value="fantasy-realistic">Fantasy Realistic</option>
+                                   <option value="oil-painting">Oil Painting Style</option>
+                                   <option value="digital-art">Digital Art</option>
+                                   <option value="concept-art">Concept Art</option>
+                                   <option value="matte-painting">Matte Painting</option>
+                                   <option value="vintage-photo">Vintage Photography</option>
+                               </optgroup>
+                           </select>
+                       </div>
+                    </div>
+                </div>
+                
+                <div class="form-actions">
+                    <button type="button" class="btn btn-secondary" id="back-btn">
+                        <i class="fas fa-arrow-left"></i> Back
+                    </button>
+                    <button type="submit" class="btn btn-primary" id="generate-btn">
+                        <i class="fas fa-magic"></i> Generate Story
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Step 3: Story Generation -->
+        <div id="step-3" class="step">
+            <div class="loading-container">
+                <div class="loading-spinner">
+                    <div class="spinner"></div>
+                </div>
+                <h2>Crafting your story...</h2>
+                <p class="loading-text">Our AI is weaving together the perfect narrative for you</p>
+                <div class="progress-bar">
+                    <div class="progress-fill"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Step 4: Story Display -->
+        <div id="step-4" class="step">
+            <div class="story-container">
+                <div class="story-header">
+                    <h2 id="story-title">Your Story</h2>
+                    <div class="story-meta">
+                        <span class="genre-badge" id="story-genre"></span>
+                        <span class="word-count" id="word-count"></span>
+                    </div>
+                </div>
+                
+                <div class="story-book" id="story-book">
+                    <!-- Generated story pages will appear here -->
+                </div>
+                
+                <div class="story-actions">
+                    <button class="btn btn-secondary" id="new-story-btn">
+                        <i class="fas fa-plus"></i> Create New Story
+                    </button>
+                    <button class="btn btn-outline" id="edit-story-btn">
+                        <i class="fas fa-edit"></i> Edit Story
+                    </button>
+                    <button class="btn btn-primary" id="export-pdf-btn">
+                        <i class="fas fa-download"></i> Export as PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- AI Model Selection Modal -->
+        <div id="ai-modal" class="modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Story Settings</h3>
+                    <button class="close-modal">&times;</button>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="creativity">Creativity Level:</label>
+                        <input type="range" id="creativity" min="0" max="100" value="70" class="slider">
+                        <div class="slider-labels">
+                            <span>Conservative</span>
+                            <span>Creative</span>
+                        </div>
+                        <small class="help-text">Controls how creative vs. predictable the AI stories will be</small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-primary" id="save-settings">Save Settings</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Settings Button -->
+        <button class="settings-btn" id="settings-btn" title="AI Settings">
+            <i class="fas fa-cog"></i>
+        </button>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="script.js?v=21"></script>
+</body>
+</html>
