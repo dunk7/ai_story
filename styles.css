@@ -362,7 +362,113 @@ body {
     height: 100%;
     background: linear-gradient(90deg, #667eea, #764ba2);
     border-radius: 4px;
-    animation: progress 3s ease-in-out infinite;
+    width: 0%;
+    transition: width 0.5s ease;
+}
+
+/* Thinking Stream */
+.thinking-stream {
+    background: linear-gradient(145deg, #1a202c, #2d3748);
+    border-radius: 16px;
+    padding: 1.5rem;
+    margin-top: 2rem;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+    border: 1px solid #4a5568;
+    max-height: 300px;
+    overflow: hidden;
+    text-align: left;
+}
+
+.thinking-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: #e2e8f0;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    font-size: 0.9rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.thinking-header i {
+    color: #667eea;
+    animation: pulse-brain 2s ease-in-out infinite;
+}
+
+@keyframes pulse-brain {
+    0%, 100% { transform: scale(1); opacity: 0.8; }
+    50% { transform: scale(1.1); opacity: 1; }
+}
+
+.thinking-content {
+    max-height: 200px;
+    overflow-y: auto;
+    font-family: 'Courier New', monospace;
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+
+.thinking-content::-webkit-scrollbar {
+    width: 6px;
+}
+
+.thinking-content::-webkit-scrollbar-track {
+    background: #2d3748;
+    border-radius: 3px;
+}
+
+.thinking-content::-webkit-scrollbar-thumb {
+    background: #4a5568;
+    border-radius: 3px;
+}
+
+.thinking-line {
+    color: #a0aec0;
+    margin-bottom: 0.5rem;
+    padding: 0.25rem 0;
+    opacity: 0;
+    animation: fadeInUp 0.3s ease forwards;
+}
+
+.thinking-line.current {
+    color: #667eea;
+    position: relative;
+}
+
+.thinking-line.current::after {
+    content: '▋';
+    color: #667eea;
+    animation: blink 1s infinite;
+    margin-left: 2px;
+}
+
+.thinking-line.system {
+    color: #68d391;
+}
+
+.thinking-line.prompt {
+    color: #fbb6ce;
+}
+
+.thinking-line.response {
+    color: #90cdf4;
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@keyframes blink {
+    0%, 50% { opacity: 1; }
+    51%, 100% { opacity: 0; }
 }
 
 /* Story Display */

@@ -2,12 +2,16 @@
 let currentStep = 1;
 let selectedGenre = '';
 let storyData = {};
+import { NovitaSDK, TaskStatus } from "https://cdn.skypack.dev/novita-sdk";
+
 let aiSettings = {
     model: 'grok-3-mini',
     creativity: 70,
     apiKey: '',
     novitaApiKey: ''
 };
+
+let novitaClient = null;
 
 // DOM elements
 const steps = document.querySelectorAll('.step');
@@ -45,6 +49,7 @@ function initializeApiKeys() {
         
         if (aiSettings.novitaApiKey && aiSettings.novitaApiKey !== 'your-novita-api-key-here') {
             console.log('✅ Novita API key loaded');
+            novitaClient = new NovitaSDK(aiSettings.novitaApiKey);
         } else {
             console.warn('⚠️  Novita API key not configured. Please check config.js');
         }
@@ -181,33 +186,73 @@ function handleFormSubmit(e) {
 
 async function generateStory() {
     try {
+        // Clear previous thinking stream
+        const thinkingContent = document.getElementById('thinking-content');
+        if (thinkingContent) {
+            thinkingContent.innerHTML = '<div class="thinking-line">Initializing story generation...</div>';
+        }
+        
+        // Add thinking stream for story generation
+        addThinkingLine(`[STORY] Starting generation for ${storyData.genre} story`, 'system');
+        addThinkingLine(`[STORY] Protagonist: ${storyData.protagonist}`, 'system');
+        addThinkingLine(`[STORY] Setting: ${storyData.setting}`, 'system');
+        addThinkingLine(`[STORY] Conflict: ${storyData.conflict}`, 'system');
+        updateProgress(10);
+        
         // Generate the story pages
         updateLoadingText('Creating your story book...');
+        addThinkingLine(`[STORY] Calling Grok API for ${storyData.pages} pages...`, 'system');
         const storyPages = await generateStoryPages(storyData);
+        
+        addThinkingLine(`[STORY] Generated "${storyPages.title}" successfully`, 'response');
+        updateProgress(40);
         
         // Generate images if requested
         if (storyData.includeImages) {
+            addThinkingLine(`[IMAGES] Starting image generation for ${storyData.pages + 1} images`, 'system');
+            updateProgress(50);
+            
             // Generate title image
+            updateLoadingText('Creating title illustration...');
+            addThinkingLine(`[IMAGES] Creating title image...`, 'system');
             const titleImage = await generateTitleImage(storyData, storyPages.title);
             
+            updateProgress(60);
             updateLoadingText('Generating image descriptions...');
+            addThinkingLine(`[IMAGES] Generating image prompts...`, 'system');
             const imagePrompts = await generateImagePrompts(storyPages, storyData);
             
             // Generate page images
+            updateProgress(70);
             updateLoadingText('Creating illustrations...');
+            addThinkingLine(`[IMAGES] Creating ${imagePrompts.length} page illustrations...`, 'system');
             const images = await generateStoryImages(imagePrompts, storyData);
+            
+            updateProgress(95);
+            addThinkingLine(`[COMPLETE] Assembling final story book...`, 'system');
+            updateLoadingText('Finalizing your story...');
             
             // Combine story pages with images
             displayStoryBook(storyPages, images, titleImage);
         } else {
+            updateProgress(80);
+            addThinkingLine(`[COMPLETE] Assembling text-only story book...`, 'system');
+            updateLoadingText('Finalizing your story...');
             displayStoryBook(storyPages, [], null);
         }
+        
+        updateProgress(100);
+        addThinkingLine(`[COMPLETE] Story generation finished!`, 'response');
+        
+        // Wait a moment for user to see completion
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
         // Go to story display step
         goToStep(4);
         
     } catch (error) {
         console.error('Error generating story:', error);
+        addThinkingLine(`[ERROR] Generation failed: ${error.message}`, 'system');
         showNotification('Failed to generate story. Please try again.', 'error');
         goToStep(2);
     }
@@ -217,6 +262,11 @@ async function generateStoryPages(data) {
     const prompt = createStoryPrompt(data);
     
     try {
+        addThinkingLine(`[GROK] Connecting to x.ai API...`, 'system');
+        addThinkingLine(`[GROK] Model: ${aiSettings.model}`, 'system');
+        addThinkingLine(`[GROK] Temperature: ${aiSettings.creativity / 100}`, 'system');
+        addThinkingLine(`[GROK] Generating ${data.pages} pages...`, 'prompt');
+        
         const response = await fetch('https://api.x.ai/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -241,9 +291,11 @@ async function generateStoryPages(data) {
         });
 
         if (!response.ok) {
+            addThinkingLine(`[ERROR] API request failed: ${response.status}`, 'system');
             throw new Error(`Story API Error: ${response.status}`);
         }
 
+        addThinkingLine(`[GROK] Response received, parsing story...`, 'system');
         const result = await response.json();
         const content = result.choices[0].message.content;
         
@@ -251,15 +303,21 @@ async function generateStoryPages(data) {
             // Try to parse as JSON first
             const parsed = JSON.parse(content);
             if (parsed.title && parsed.pages) {
+                addThinkingLine(`[GROK] Story parsed successfully: "${parsed.title}"`, 'response');
                 return parsed;
             }
         } catch (e) {
+            addThinkingLine(`[GROK] JSON parse failed, using manual parser...`, 'system');
             // Fallback: parse manually
-            return parseStoryManually(content, data.pages);
+            const manualParsed = parseStoryManually(content, data.pages);
+            addThinkingLine(`[GROK] Manual parse complete: "${manualParsed.title}"`, 'response');
+            return manualParsed;
         }
         
     } catch (error) {
         console.error('Error generating story pages:', error);
+        addThinkingLine(`[ERROR] Story generation failed: ${error.message}`, 'system');
+        addThinkingLine(`[FALLBACK] Using demo story...`, 'system');
         // Fallback to simple demo
         return generateFallbackStory(data);
     }
@@ -464,6 +522,46 @@ function updateLoadingText(text) {
     }
 }
 
+function updateProgress(percentage) {
+    const progressFill = document.getElementById('progress-fill');
+    if (progressFill) {
+        progressFill.style.width = `${percentage}%`;
+    }
+}
+
+function addThinkingLine(text, type = 'default') {
+    const thinkingContent = document.getElementById('thinking-content');
+    if (!thinkingContent) return;
+    
+    // Remove current cursor from previous line
+    const currentLines = thinkingContent.querySelectorAll('.thinking-line.current');
+    currentLines.forEach(line => line.classList.remove('current'));
+    
+    // Create new line
+    const line = document.createElement('div');
+    line.className = `thinking-line ${type} current`;
+    line.textContent = text;
+    
+    thinkingContent.appendChild(line);
+    
+    // Auto-scroll to bottom
+    thinkingContent.scrollTop = thinkingContent.scrollHeight;
+    
+    // Animate the line
+    setTimeout(() => {
+        line.style.animationDelay = '0s';
+    }, 50);
+}
+
+async function simulateThinking(content, delay = 100) {
+    const lines = content.split('\n').filter(line => line.trim());
+    
+    for (const line of lines) {
+        addThinkingLine(line);
+        await new Promise(resolve => setTimeout(resolve, delay));
+    }
+}
+
 async function generateTitleImage(storyData, storyTitle) {
     try {
         updateLoadingText('Creating title page illustration...');
@@ -543,9 +641,15 @@ Create a detailed prompt (200+ words) that describes the character's appearance,
 
 async function generateStoryImages(imagePrompts, storyData) {
     const images = [];
+    const totalImages = imagePrompts.length;
     
     for (let i = 0; i < imagePrompts.length; i++) {
         updateLoadingText(`Generating image ${i + 1} of ${imagePrompts.length}...`);
+        addThinkingLine(`[IMAGES] Starting image ${i + 1}/${totalImages}...`, 'system');
+        
+        // Update progress: 70% base + (25% * progress through images)
+        const imageProgress = 70 + (25 * (i / totalImages));
+        updateProgress(imageProgress);
         
         try {
             const enhancedPrompt = enhanceImagePrompt(imagePrompts[i], storyData);
@@ -555,8 +659,11 @@ async function generateStoryImages(imagePrompts, storyData) {
                 url: imageUrl,
                 prompt: enhancedPrompt
             });
+            
+            addThinkingLine(`[IMAGES] Image ${i + 1}/${totalImages} completed`, 'response');
         } catch (error) {
             console.error(`Error generating image ${i + 1}:`, error);
+            addThinkingLine(`[ERROR] Image ${i + 1} failed, using placeholder`, 'system');
             // Add blank image for failed generation
             images.push({
                 url: 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzA0IiBoZWlnaHQ9IjQ0OCIgdmlld0JveD0iMCAwIDcwNCA0NDgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI3MDQiIGhlaWdodD0iNDQ4IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0zNTIgMjAwVjI0OCIgc3Ryb2tlPSIjOUI5QkEwIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8cGF0aCBkPSJNMzI4IDIyNEgzNzYiIHN0cm9rZT0iIzlCOUJBMCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPHRleHQgeD0iMzUyIiB5PSIyODAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlCOUJBMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+SW1hZ2UgR2VuZXJhdGlvbiBGYWlsZWQ8L3RleHQ+Cjwvc3ZnPg==',
@@ -628,127 +735,90 @@ function truncatePrompt(prompt, maxLength = 500) {
 
 async function callNovitaImageAPI(prompt, storyData) {
     try {
-        console.log('🎨 IMAGE PROMPT (original):', prompt);
-        console.log('🎯 STYLE:', storyData.artStyle);
-        
-        // Truncate prompt if it's too long
+        if (!novitaClient) {
+            throw new Error('Novita client not initialized');
+        }
+
+        addThinkingLine(`[IMAGE] Sending prompt to Novita AI...`, 'system');
+        addThinkingLine(`[IMAGE] Model: cyberrealistic_v31`, 'system');
+        addThinkingLine(`[IMAGE] Prompt: ${prompt.substring(0, 80)}...`, 'prompt');
+
         const truncatedPrompt = truncatePrompt(prompt, 400);
-        if (truncatedPrompt !== prompt) {
-            console.log('✂️ Prompt truncated to:', truncatedPrompt);
-        }
-        
-        // Create negative prompt to avoid unwanted elements
-        const negativePrompt = "lowres, bad anatomy, bad hands, text, missing finger, extra digits, fewer digits, blurry, mutated hands and fingers, poorly drawn face, mutation, deformed face, ugly, bad proportions, extra limbs, extra face, double head, extra head, extra feet, monster, logo, cropped, worst quality, low quality, normal quality, jpeg, humpbacked, long body, long neck, jpeg artifacts, monochrome, limited palette, blush, nsfw, realistic, photorealistic, photograph";
-        
-        const requestBody = {
-            "extra": {
-                "response_image_type": "jpeg",
-                "enable_nsfw_detection": false
+        const negativePrompt = "blurry, low quality, distorted, text, watermark, signature, bad anatomy";
+
+        const params = {
+            request: {
+                model_name: "cyberrealistic_v31_62396.safetensors",
+                prompt: truncatedPrompt,
+                negative_prompt: negativePrompt,
+                width: 1024,
+                height: 768,
+                sampler_name: "DPM++ 2S a Karras",
+                guidance_scale: 7.5,
+                steps: 20,
+                image_num: 1,
+                clip_skip: 1,
+                seed: -1,
+                loras: [],
             },
-            "request": {
-                "model_name": "anythingelseV4_v45_5768.safetensors",
-                "prompt": truncatedPrompt,
-                "negative_prompt": negativePrompt,
-                "width": 704,
-                "height": 448,
-                "image_num": 1,
-                "steps": 50,
-                "guidance_scale": 7,
-                "sampler_name": "DPM++ 2S a Karras",
-                "seed": Math.floor(Math.random() * 1000000000),
-                "loras": [],
-                "embeddings": []
-            }
         };
+
+        const response = await novitaClient.txt2ImgV3(params);
         
-        console.log('📤 Sending request to Novita API...');
-        
-        // Create the task
-        const createResponse = await fetch('https://api.novita.ai/v3/async/txt2img', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${aiSettings.novitaApiKey}`
-            },
-            body: JSON.stringify(requestBody)
-        });
-        
-        if (!createResponse.ok) {
-            const errorText = await createResponse.text();
-            console.error('❌ API Error Response:', errorText);
-            throw new Error(`HTTP error! status: ${createResponse.status}, body: ${errorText}`);
+        if (!response || !response.task_id) {
+            throw new Error('No task ID received from Novita API');
         }
-        
-        const createResult = await createResponse.json();
-        
-        if (createResult && createResult.task_id) {
-            console.log('⏳ Task created:', createResult.task_id);
-            
-            return new Promise((resolve, reject) => {
-                const timer = setInterval(async () => {
-                    try {
-                        // Check task status
-                        const statusResponse = await fetch(`https://api.novita.ai/v3/async/task-result?task_id=${createResult.task_id}`, {
-                            method: 'GET',
-                            headers: {
-                                'Authorization': `Bearer ${aiSettings.novitaApiKey}`
-                            }
-                        });
-                        
-                        if (!statusResponse.ok) {
-                            throw new Error(`Status check failed: ${statusResponse.status}`);
-                        }
-                        
-                        const progressRes = await statusResponse.json();
-                        
-                        if (progressRes.task.status === 'TASK_STATUS_SUCCEED') {
-                            console.log('✅ Image generation finished!', progressRes.images);
-                            clearInterval(timer);
-                            if (progressRes.images && progressRes.images.length > 0) {
-                                resolve(progressRes.images[0].image_url);
-                            } else {
-                                reject(new Error('No images returned'));
-                            }
-                        }
-                        
-                        if (progressRes.task.status === 'TASK_STATUS_FAILED') {
-                            console.warn('❌ Image generation failed!', progressRes.task.reason);
-                            clearInterval(timer);
-                            reject(new Error(progressRes.task.reason || 'Image generation failed'));
-                        }
-                        
-                        if (progressRes.task.status === 'TASK_STATUS_QUEUED') {
-                            console.log('⏳ Queued - waiting...');
-                        }
-                        
-                        if (progressRes.task.status === 'TASK_STATUS_PROCESSING') {
-                            console.log('🔄 Processing...');
-                        }
-                        
-                    } catch (err) {
-                        console.error('❌ Progress check error:', err);
-                        clearInterval(timer);
-                        reject(err);
-                    }
-                }, 2000); // Check every 2 seconds
-                
-                // Timeout after 5 minutes
-                setTimeout(() => {
-                    clearInterval(timer);
-                    reject(new Error('Image generation timeout'));
-                }, 300000);
-            });
-        } else {
-            throw new Error('Failed to create image generation task');
-        }
+
+        addThinkingLine(`[IMAGE] Task queued: ${response.task_id}`, 'system');
+        addThinkingLine(`[IMAGE] Waiting for image generation...`, 'system');
+
+        // Poll for completion
+        return await pollForImageCompletion(response.task_id);
         
     } catch (error) {
-        console.error('❌ Novita API Error:', error);
-        
+        console.error('Error calling Novita API:', error);
+        addThinkingLine(`[ERROR] Image generation failed: ${error.message}`, 'system');
         // Return blank/error image instead of random placeholders
-        console.log('🔄 Image generation failed - using blank image');
-        return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzA0IiBoZWlnaHQ9IjQ0OCIgdmlld0JveD0iMCAwIDcwNCA0NDgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI3MDQiIGhlaWdodD0iNDQ4IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0zNTIgMjAwVjI0OCIgc3Ryb2tlPSIjOUI5QkEwIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8cGF0aCBkPSJNMzI4IDIyNEgzNzYiIHN0cm9rZT0iIzlCOUJBMCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcT0icm91bmQiLz4KPHRleHQgeD0iMzUyIiB5PSIyODAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlCOUJBMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+SW1hZ2UgR2VuZXJhdGlvbiBGYWlsZWQ8L3RleHQ+Cjwvc3ZnPg==';
+        return 'data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNzA0IiBoZWlnaHQ9IjQ0OCIgdmlld0JveD0iMCAwIDcwNCA0NDgiIGZpbGw9Im5vbmUiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+CjxyZWN0IHdpZHRoPSI3MDQiIGhlaWdodD0iNDQ4IiBmaWxsPSIjRjNGNEY2Ii8+CjxwYXRoIGQ9Ik0zNTIgMjAwVjI0OCIgc3Ryb2tlPSIjOUI5QkEwIiBzdHJva2Utd2lkdGg9IjIiIHN0cm9rZS1saW5lY2FwPSJyb3VuZCIvPgo8cGF0aCBkPSJNMzI4IDIyNEgzNzYiIHN0cm9rZT0iIzlCOUJBMCIgc3Ryb2tlLXdpZHRoPSIyIiBzdHJva2UtbGluZWNhcD0icm91bmQiLz4KPHRleHQgeD0iMzUyIiB5PSIyODAiIGZvbnQtZmFtaWx5PSJBcmlhbCIgZm9udC1zaXplPSIxNCIgZmlsbD0iIzlCOUJBMCIgdGV4dC1hbmNob3I9Im1pZGRsZSI+SW1hZ2UgR2VuZXJhdGlvbiBGYWlsZWQ8L3RleHQ+Cjwvc3ZnPg==';
     }
+}
+
+async function pollForImageCompletion(taskId) {
+    const maxAttempts = 60; // 5 minutes with 5-second intervals
+    let attempts = 0;
+    
+    while (attempts < maxAttempts) {
+        try {
+            const progressRes = await novitaClient.progress({ task_id: taskId });
+            
+            if (progressRes.task.status === TaskStatus.SUCCEED) {
+                addThinkingLine(`[IMAGE] Generation completed successfully!`, 'response');
+                if (progressRes.images && progressRes.images.length > 0) {
+                    return progressRes.images[0].image_url;
+                } else {
+                    throw new Error('No images in successful response');
+                }
+            } else if (progressRes.task.status === TaskStatus.FAILED) {
+                addThinkingLine(`[ERROR] Image generation failed: ${progressRes.task.reason}`, 'system');
+                throw new Error(`Image generation failed: ${progressRes.task.reason || 'Unknown error'}`);
+            } else if (progressRes.task.status === TaskStatus.QUEUED) {
+                if (attempts % 6 === 0) { // Show every 30 seconds
+                    addThinkingLine(`[IMAGE] Still in queue... (${Math.floor(attempts * 5 / 60)}m ${(attempts * 5) % 60}s)`, 'system');
+                }
+            }
+            
+            // Still processing, wait and try again
+            await new Promise(resolve => setTimeout(resolve, 5000));
+            attempts++;
+            
+        } catch (error) {
+            console.error(`Polling attempt ${attempts + 1} failed:`, error);
+            attempts++;
+            await new Promise(resolve => setTimeout(resolve, 5000));
+        }
+    }
+    
+    throw new Error('Image generation timed out after 5 minutes');
 }
 
 function displayStoryBook(storyPages, images, titleImage) {

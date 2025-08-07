@@ -217,9 +217,18 @@
                     <div class="spinner"></div>
                 </div>
                 <h2>Crafting your story...</h2>
-                <p class="loading-text">Our AI is weaving together the perfect narrative for you</p>
+                <p class="loading-text" id="loading-text">Our AI is weaving together the perfect narrative for you</p>
                 <div class="progress-bar">
-                    <div class="progress-fill"></div>
+                    <div class="progress-fill" id="progress-fill"></div>
+                </div>
+                <div class="thinking-stream" id="thinking-stream">
+                    <div class="thinking-header">
+                        <i class="fas fa-brain"></i>
+                        <span>AI Thinking Process</span>
+                    </div>
+                    <div class="thinking-content" id="thinking-content">
+                        <div class="thinking-line">Initializing story generation...</div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -283,7 +292,7 @@
         </button>
     </div>
 
-    <script src="config.js"></script>
-    <script src="script.js?v=21"></script>
+            <script src="config.js"></script>
+        <script type="module" src="script.js?v=22"></script>
 </body>
 </html>
