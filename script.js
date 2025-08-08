@@ -24,27 +24,54 @@ const closeModal = document.querySelector('.close-modal');
 const saveSettingsBtn = document.getElementById('save-settings');
 
 // Initialize app
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', async function() {
     console.log('Script loaded! Current model:', aiSettings.model);
-    initializeApiKeys();
+    await initializeApiKeys();
     initializeEventListeners();
     loadSettings();
 });
 
-function initializeApiKeys() {
-    // Load API keys from config.js
+async function initializeApiKeys() {
+    try {
+        // Try to load API keys from Netlify function first (for production)
+        const response = await fetch('/.netlify/functions/get-api-config');
+        
+        if (response.ok) {
+            const config = await response.json();
+            aiSettings.apiKey = config.grokApiKey || '';
+            aiSettings.novitaApiKey = config.novitaApiKey || '';
+            
+            if (aiSettings.apiKey) {
+                console.log('✅ Grok API key loaded from environment');
+            } else {
+                console.warn('⚠️  Grok API key not found in environment variables');
+            }
+            
+            if (aiSettings.novitaApiKey) {
+                console.log('✅ Novita API key loaded from environment');
+            } else {
+                console.warn('⚠️  Novita API key not found in environment variables');
+            }
+            
+            return; // Success, exit early
+        }
+    } catch (error) {
+        console.log('📝 Netlify function not available, falling back to local config...');
+    }
+    
+    // Fallback to local config.js for development
     if (window.API_CONFIG) {
         aiSettings.apiKey = window.API_CONFIG.grokApiKey || '';
         aiSettings.novitaApiKey = window.API_CONFIG.novitaApiKey || '';
         
         if (aiSettings.apiKey && aiSettings.apiKey !== 'your-grok-api-key-here') {
-            console.log('✅ Grok API key loaded');
+            console.log('✅ Grok API key loaded from local config');
         } else {
             console.warn('⚠️  Grok API key not configured. Please check config.js');
         }
         
         if (aiSettings.novitaApiKey && aiSettings.novitaApiKey !== 'your-novita-api-key-here') {
-            console.log('✅ Novita API key loaded');
+            console.log('✅ Novita API key loaded from local config');
         } else {
             console.warn('⚠️  Novita API key not configured. Please check config.js');
         }

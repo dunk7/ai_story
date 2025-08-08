@@ -1,0 +1,26 @@
+[build]
+  # No build command needed for static HTML/JS site
+  publish = "."
+
+[functions]
+  # Configure Netlify Functions
+  directory = "netlify/functions"
+
+[[headers]]
+  # Apply security headers to all pages
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-XSS-Protection = "1; mode=block"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+
+[[redirects]]
+  # Handle 404s for client-side routing (if needed in future)
+  from = "/*"
+  to = "/index.html"
+  status = 404
+
+# Environment variables are configured in Netlify UI:
+# GROK_API_KEY - Your Grok API key from x.ai
+# NOVITA_API_KEY - Your Novita API key from novita.ai
